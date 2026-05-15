@@ -4,6 +4,7 @@ import Security
 enum KeychainManager {
     enum Keys {
         static let lastfmSessionKey = "org.Petrichor.lastfm.sessionKey"
+        static let listenbrainzToken = "org.Petrichor.listenbrainz.token"
     }
     
     // MARK: - Save

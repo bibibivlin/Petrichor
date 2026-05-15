@@ -17,6 +17,10 @@ class PlaybackManager: NSObject, ObservableObject {
         AppCoordinator.shared?.scrobbleManager
     }
 
+    var listenBrainzManager: ListenBrainzManager? {
+        AppCoordinator.shared?.listenBrainzManager
+    }
+
     @Published var currentTrack: Track?
     @Published var isPlaying: Bool = false {
         didSet {
@@ -945,6 +949,7 @@ extension PlaybackManager: AudioPlayerDelegate {
             if stopReason == .eof, let finishedTrack {
                 self.playlistManager.incrementPlayCount(for: finishedTrack)
                 self.scrobbleManager?.trackFinished(finishedTrack)
+                self.listenBrainzManager?.trackFinished(finishedTrack)
 
                 Logger.info("Track completed naturally, updating play count, last played date, and scrobbling it if configured")
             }

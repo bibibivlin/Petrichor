@@ -147,6 +147,7 @@ extension PlaybackManager {
         }
 
         scrobbleManager?.trackStarted(track)
+        listenBrainzManager?.trackStarted(track)
         publishNowPlayingMetadata(for: track)
         loadFullTrack(for: track)
         hydrateArtworkWindow()
@@ -177,6 +178,7 @@ extension PlaybackManager {
         currentEntryId = entryId
         currentTime = position
         scrobbleManager?.trackStarted(track)
+        listenBrainzManager?.trackStarted(track)
         loadFullTrack(for: track)
         hydrateArtworkWindow()
     }

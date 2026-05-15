@@ -1,3 +1,8 @@
+<div align="center">
+<strong>🍴 Fork Notice:</strong> This version adds <a href="https://listenbrainz.org/">ListenBrainz</a> scrobbling support — submit your listening activity alongside or instead of Last.fm. Configure it via <em>Settings → Integrations → ListenBrainz</em>.
+<br/><br/>
+</div>
+
 <img width="170" src=".github/assets/DefaultAppIcon.png" alt="Petrichor App Icon" align="left"/>
 
 <div>

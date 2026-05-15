@@ -10,6 +10,12 @@ struct IntegrationsTabView: View {
     @AppStorage("loveSyncEnabled")
     private var loveSyncEnabled: Bool = true
 
+    @AppStorage("listenBrainzEnabled")
+    private var listenBrainzEnabled: Bool = true
+
+    @AppStorage("listenBrainzConnected")
+    private var listenBrainzConnected: Bool = false
+
     @AppStorage("onlineLyricsEnabled")
     private var onlineLyricsEnabled: Bool = false
 
@@ -29,10 +35,24 @@ struct IntegrationsTabView: View {
 
     private let dependentIndent: CGFloat = 20
 
+    // ListenBrainz state
+    @State private var showTokenSheet = false
+    @State private var tokenInput = ""
+    @State private var isConnectingLB = false
+    @State private var showLBDisconnectConfirmation = false
     private var isConnected: Bool {
         !lastfmUsername.isEmpty
     }
 
+    private var maskedToken: String {
+        guard let token = AppCoordinator.shared?.listenBrainzManager.token,
+              token.count > 6 else {
+            return "****"
+        }
+        let prefix = String(token.prefix(4))
+        let suffix = String(token.suffix(4))
+        return "\(prefix)****\(suffix)"
+    }
     private var cachedLastFMAvatar: NSImage? {
         guard let data = UserDefaults.standard.data(forKey: "lastfmAvatarData"),
               let image = NSImage(data: data) else {
@@ -49,6 +69,11 @@ struct IntegrationsTabView: View {
                 Text("Last.fm")
             }
 
+            Section {
+                listenbrainzSection
+            } header: {
+                Text("ListenBrainz")
+            }
             Section {
                 onlineFeaturesSection
             } header: {
@@ -71,6 +96,17 @@ struct IntegrationsTabView: View {
             }
         } message: {
             Text("Your listening activity will no longer be scrobbled to Last.fm once you disconnect.")
+        }
+        .alert("Disconnect from ListenBrainz?", isPresented: $showLBDisconnectConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Disconnect", role: .destructive) {
+                disconnectListenBrainz()
+            }
+        } message: {
+            Text("Your listening activity will no longer be submitted to ListenBrainz once you disconnect.")
+        }
+        .sheet(isPresented: $showTokenSheet) {
+            tokenEntrySheet
         }
     }
 
@@ -185,6 +221,119 @@ struct IntegrationsTabView: View {
         .padding(.vertical, 4)
     }
 
+    // MARK: - ListenBrainz Section
+
+    @ViewBuilder
+    private var listenbrainzSection: some View {
+        if listenBrainzConnected {
+            lbConnectedView
+        } else {
+            lbDisconnectedView
+        }
+    }
+
+    private var lbConnectedView: some View {
+        Group {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 28))
+                    .foregroundColor(.accentColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(maskedToken)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    Text("Connected")
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                }
+
+                Spacer()
+
+                Button {
+                    showLBDisconnectConfirmation = true
+                } label: {
+                    Text("Disconnect")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+                .background(Color.red)
+                .cornerRadius(5)
+            }
+            .padding(.vertical, 4)
+
+            Toggle("Enable scrobbling", isOn: $listenBrainzEnabled)
+                .help("Submit your listening history to ListenBrainz")
+        }
+    }
+
+    private var lbDisconnectedView: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Not connected")
+                    .font(.system(size: 13, weight: .medium))
+                Text("Enter your ListenBrainz user token to start scrobbling")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                tokenInput = ""
+                showTokenSheet = true
+            } label: {
+                Text("Connect")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var tokenEntrySheet: some View {
+        VStack(spacing: 20) {
+            Text("Connect to ListenBrainz")
+                .font(.headline)
+
+            Text("Enter your user token from listenbrainz.org/settings")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            SecureField("User Token", text: $tokenInput)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 350)
+                .onSubmit {
+                    connectListenBrainz()
+                }
+
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    showTokenSheet = false
+                }
+                .keyboardShortcut(.escape)
+
+                Button(action: connectListenBrainz) {
+                    Group {
+                        if isConnectingLB {
+                            ProgressView()
+                                .controlSize(.small)
+                                .scaleEffect(0.7)
+                        } else {
+                            Text("Connect")
+                        }
+                    }
+                    .frame(width: 60)
+                }
+                .keyboardShortcut(.return)
+                .disabled(tokenInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isConnectingLB)
+            }
+        }
+        .padding(30)
+        .frame(width: 400)
+    }
     // MARK: - Online Features Section
 
     private var onlineFeaturesSection: some View {
@@ -267,6 +416,29 @@ struct IntegrationsTabView: View {
 
         Logger.info("Disconnected from Last.fm")
         NotificationManager.shared.addMessage(.info, String(localized: "Disconnected from Last.fm"))
+    }
+
+    // MARK: - ListenBrainz Actions
+
+    private func connectListenBrainz() {
+        let trimmedToken = tokenInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedToken.isEmpty else { return }
+
+        isConnectingLB = true
+
+        AppCoordinator.shared?.listenBrainzManager.setToken(trimmedToken)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            isConnectingLB = false
+            showTokenSheet = false
+        }
+    }
+
+    private func disconnectListenBrainz() {
+        listenBrainzEnabled = true
+        AppCoordinator.shared?.listenBrainzManager.clearToken()
+        Logger.info("Disconnected from ListenBrainz")
+        NotificationManager.shared.addMessage(.info, "Disconnected from ListenBrainz")
     }
 }
 

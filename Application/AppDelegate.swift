@@ -445,7 +445,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             "crossfadeDuration": 3.0,
             "replayGainEnabled": false,
             "replayGainMode": "auto",
-            "replayGainPreamp": 0.0
+            "replayGainPreamp": 0.0,
+            "listenBrainzEnabled": true
         ]
 
         UserDefaults.standard.register(defaults: defaults)

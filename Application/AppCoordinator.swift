@@ -10,6 +10,7 @@ class AppCoordinator: ObservableObject {
     let playbackManager: PlaybackManager
     let menuBarManager: MenuBarManager
     let scrobbleManager: ScrobbleManager
+    let listenBrainzManager: ListenBrainzManager
 
     private let sessionStore: PlaybackSessionStore
     private var restorationGeneration: UInt64 = 0
@@ -28,6 +29,7 @@ class AppCoordinator: ObservableObject {
         playbackManager.connectRemoteCommandCenter()
         menuBarManager = MenuBarManager(playbackManager: playbackManager, playlistManager: playlistManager)
         scrobbleManager = ScrobbleManager()
+        listenBrainzManager = ListenBrainzManager()
 
         Self.shared = self
 
